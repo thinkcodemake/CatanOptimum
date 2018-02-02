@@ -2,6 +2,7 @@ import random
 from collections import namedtuple
 import tkinter as tk
 from tkinter import ttk
+import itertools
 
 # TODO: Pair-wise comparisons
 # TODO: 2nd settlement selector
@@ -201,6 +202,73 @@ class Board:
 
             for node in nodes:
                 self.nodes[node].ports.append(self.ports[i])
+
+    def get_pairwise_dot_sum(self):
+        dot_pairs = []
+        for a, b in itertools.combinations(self.nodes, 2):
+            dot_pairs.append(((a.index, b.index), a.get_dot_sum() + b.get_dot_sum()))
+
+        return dot_pairs
+
+    def get_pairwise_hit_frequency(self):
+        freq_pairs = []
+        for a, b in itertools.combinations(self.nodes, 2):
+            nums_a = set(tile.number for tile in a.tiles)
+            nums_b = set(tile.number for tile in b.tiles)
+
+            nums = nums_a | nums_b
+
+            freq_pairs.append((
+                (a.index, b.index),
+                sum((Tile.number_to_dots(num) / 36) for num in nums)))
+
+        return freq_pairs
+
+    def get_pairwise_flow_rate_no_trades(self):
+        flow_pairs = []
+        for a, b in itertools.combinations(self.nodes, 2):
+            flow_pairs.append((
+            (a.index, b.index),
+            (a.get_flow_rate_no_trades() + b.get_flow_rate_no_trades())))
+
+        return flow_pairs
+
+    def get_pairwise_flow_rate(self):
+        flow_pairs = []
+
+        for a, b in itertools.combinations(self.nodes, 2):
+
+            a_flow = a.get_flow_rate()
+            b_flow = b.get_flow_rate()
+
+            flow = {
+                resource: a_flow.get(resource, 0) + b_flow.get(resource, 0)
+                for resource
+                in set(a_flow) | set(b_flow)
+            }
+
+            flow_pairs.append(((a.index, b.index), flow))
+
+        return flow_pairs
+
+    def get_pairwise_fill_rate(self, needs):
+        fill_pairs = []
+
+        for pair, flow in self.get_pairwise_flow_rate():
+            num_turns = {
+                resource: needs.get(resource, 0) / (
+                    flow.get(resource, 0)
+                    if flow.get(resource, 0) != 0
+                    else 1 / 1000000000
+                )
+                for resource
+                in set(needs) | set(flow)
+            }
+
+            fill_pairs.append((pair, max(num_turns.values())))
+
+        return fill_pairs
+
 
 class Tile:
     """
@@ -449,12 +517,20 @@ class Application(tk.Frame):
             textvariable=self.metric,
             width=max(len(x) for x in metric_options)
             )
-        self.metric_box.grid(row=1, sticky='NEW')
+        self.metric_box.grid(row=1, columnspan=2, sticky='NEW')
+
+        self.pairwise = tk.IntVar()
+        self.pairwise_check = ttk.Checkbutton(
+            self.left,
+            variable=self.pairwise,
+            text='Pairwise'
+        )
+        self.pairwise_check.grid(row=0, column=1, sticky='E')
 
         self.submit = ttk.Button(self.left,
                                  text='Submit',
                                  command=self.select_optimum)
-        self.submit.grid(column=0, row=2, sticky='EW')
+        self.submit.grid(column=0, columnspan=2, row=2, sticky='EW')
 
         # Sorted list of pieces.
         self.list = tk.Frame(self.left)
@@ -579,31 +655,50 @@ class Application(tk.Frame):
 
         method = self.metric_box.get()
 
-        if method == 'Dot Count':
+        if method == 'Dot Count' and not self.pairwise.get():
             scores = [(node.index, node.get_dot_sum())
                       for node
                       in self.board.nodes]
             scores.sort(key=lambda x: x[1], reverse=True)
-        elif method == 'Hit Frequency':
+        elif method == 'Hit Frequency' and not self.pairwise.get():
             scores = [(node.index, node.get_hit_frequency())
                       for node
                       in self.board.nodes]
             scores.sort(key=lambda x: x[1], reverse=True)
-        elif method == 'Resource Rate':
+        elif method == 'Resource Rate' and not self.pairwise.get():
             scores = [(node.index, node.get_flow_rate_no_trades())
                       for node
                       in self.board.nodes]
             scores.sort(key=lambda x: x[1], reverse=True)
-        elif method == 'Resource Rate with Trades':
+        elif method == 'Resource Rate with Trades' and not self.pairwise.get():
             scores = [(node.index, sum(node.get_flow_rate().values()))
                       for node
                       in self.board.nodes]
             scores.sort(key=lambda x: x[1], reverse=True)
-        elif method == 'Resource Needs':
+        elif method == 'Resource Needs' and not self.pairwise.get():
             needs = {k: v.get() for k, v in self.needs.items()}
             scores = [(node.index, node.get_fill_rate(needs))
                       for node
                       in self.board.nodes]
+            scores.sort(key=lambda x: x[1])
+        elif method == 'Dot Count' and self.pairwise.get():
+            scores = self.board.get_pairwise_dot_sum()
+            scores.sort(key=lambda x: x[1], reverse=True)
+        elif method == 'Hit Frequency' and self.pairwise.get():
+            scores = self.board.get_pairwise_hit_frequency()
+            scores.sort(key=lambda x: x[1], reverse=True)
+        elif method == 'Resource Rate' and self.pairwise.get():
+            scores = self.board.get_pairwise_flow_rate_no_trades()
+            scores.sort(key=lambda x: x[1], reverse=True)
+        elif method == 'Resource Rate with Trades' and self.pairwise.get():
+
+            scores = [(pair, sum(flow.values()))
+                      for pair, flow
+                      in self.board.get_pairwise_flow_rate()]
+            scores.sort(key=lambda x: x[1], reverse=True)
+        elif method == 'Resource Needs' and self.pairwise.get():
+            needs = {k: v.get() for k, v in self.needs.items()}
+            scores = self.board.get_pairwise_fill_rate(needs)
             scores.sort(key=lambda x: x[1])
         else:
             scores = []
