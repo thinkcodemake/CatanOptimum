@@ -120,7 +120,7 @@ class Board:
             13: Connection([1, 4, 5], [8, 9, 18]),
             14: Connection([2, 5, 6], [9, 10, 19]),
             15: Connection([6], [10, 20]),
-            16: Connection([3, 7], [11, 21]),
+            16: Connection([3, 7], [11, 21, 22]),
             17: Connection([3, 4, 8], [12, 22, 23]),
             18: Connection([4, 5, 9], [13, 23, 24]),
             19: Connection([5, 6, 10], [14, 24, 25]),
