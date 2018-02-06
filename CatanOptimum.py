@@ -206,6 +206,8 @@ class Board:
     def get_pairwise_dot_sum(self):
         dot_pairs = []
         for a, b in itertools.combinations(self.nodes, 2):
+            if a in b.neighbors or b in a.neighbors:
+                continue
             dot_pairs.append(((a.index, b.index), a.get_dot_sum() + b.get_dot_sum()))
 
         return dot_pairs
@@ -213,6 +215,8 @@ class Board:
     def get_pairwise_hit_frequency(self):
         freq_pairs = []
         for a, b in itertools.combinations(self.nodes, 2):
+            if a in b.neighbors or b in a.neighbors:
+                continue
             nums_a = set(tile.number for tile in a.tiles)
             nums_b = set(tile.number for tile in b.tiles)
 
@@ -227,6 +231,8 @@ class Board:
     def get_pairwise_flow_rate_no_trades(self):
         flow_pairs = []
         for a, b in itertools.combinations(self.nodes, 2):
+            if a in b.neighbors or b in a.neighbors:
+                continue
             flow_pairs.append((
             (a.index, b.index),
             (a.get_flow_rate_no_trades() + b.get_flow_rate_no_trades())))
@@ -237,7 +243,8 @@ class Board:
         flow_pairs = []
 
         for a, b in itertools.combinations(self.nodes, 2):
-
+            if a in b.neighbors or b in a.neighbors:
+                continue
             a_flow = a.get_flow_rate()
             b_flow = b.get_flow_rate()
 
